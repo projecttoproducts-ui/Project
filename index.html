@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AquaSense Pro | Water Monitoring System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header Styles */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5em;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header h1 i {
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-item i {
+            font-size: 1.2em;
+        }
+
+        /* Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .card.warning::before {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .card.critical::before {
+            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card-header i {
+            font-size: 2em;
+            color: #667eea;
+        }
+
+        .card-header h3 {
+            color: #333;
+            font-size: 1.2em;
+            font-weight: 500;
+        }
+
+        .card-value {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .card-unit {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .card-status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 50px;
+            font-size: 0.9em;
+            font-weight: 500;
+            margin-top: 10px;
+        }
+
+        .status-safe {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-low {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-mod {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .status-high {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-critical {
+            background: #f8d7da;
+            color: #721c24;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        /* Chart Section */
+        .chart-section {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .chart-header h2 {
+            color: #333;
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .chart-btn {
+            padding: 8px 16px;
+            border: 1px solid #e0e0e0;
+            background: white;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+        }
+
+        .chart-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+
+        /* Logs Table */
+        .logs-section {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .logs-header h2 {
+            color: #333;
+            font-size: 1.5em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logs-header h2 i {
+            color: #f5576c;
+        }
+
+        .logs-filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid #e0e0e0;
+            background: white;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+        }
+
+        .filter-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f8f9fa;
+            color: #333;
+            font-weight: 600;
+            padding: 15px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+            color: #666;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .log-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 50px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .log-critical {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .log-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .log-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        /* Zone Indicators */
+        .zone-indicator {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .zone-indicator.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        /* Loading Spinner */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .card-value {
+                font-size: 2em;
+            }
+            
+            .chart-container {
+                height: 300px;
+            }
+        }
+
+        /* Alert Banner */
+        .alert-banner {
+            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .alert-banner i {
+            font-size: 1.5em;
+        }
+
+        .alert-banner .close-btn {
+            margin-left: auto;
+            cursor: pointer;
+            font-size: 1.2em;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .alert-banner .close-btn:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>
+                <i class="fas fa-water"></i>
+                AquaSense Pro - Water Quality Monitoring System
+            </h1>
+            <div class="status-bar">
+                <div class="status-item">
+                    <i class="fas fa-wifi"></i>
+                    <span id="wifi-status">Connected</span>
+                </div>
+                <div class="status-item">
+                    <i class="fas fa-database"></i>
+                    <span id="firebase-status">Connected</span>
+                </div>
+                <div class="status-item">
+                    <i class="fas fa-clock"></i>
+                    <span id="last-update">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert Banner (Hidden by default) -->
+        <div id="alertBanner" class="alert-banner" style="display: none;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span id="alertMessage"></span>
+            <i class="fas fa-times close-btn" onclick="hideAlert()"></i>
+        </div>
+
+        <!-- Real-time Cards -->
+        <div class="cards-grid">
+            <div class="card" id="tempCard">
+                <div class="card-header">
+                    <i class="fas fa-thermometer-half"></i>
+                    <h3>Temperature</h3>
+                </div>
+                <div class="card-value" id="tempValue">--</div>
+                <div class="card-unit" id="tempUnit">°C</div>
+                <div class="card-status" id="tempStatus"></div>
+            </div>
+
+            <div class="card" id="tdsCard">
+                <div class="card-header">
+                    <i class="fas fa-flask"></i>
+                    <h3>TDS Level</h3>
+                </div>
+                <div class="card-value" id="tdsValue">--</div>
+                <div class="card-unit" id="tdsUnit">ppm</div>
+                <div class="card-status" id="tdsStatus"></div>
+            </div>
+
+            <div class="card" id="gciCard">
+                <div class="card-header">
+                    <i class="fas fa-chart-line"></i>
+                    <h3>GCI (Global Index)</h3>
+                </div>
+                <div class="card-value" id="gciValue">--</div>
+                <div class="card-unit" id="gciUnit">%</div>
+                <div class="card-status" id="gciStatus"></div>
+            </div>
+
+            <div class="card" id="trendCard">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar"></i>
+                    <h3>Current Trend</h3>
+                </div>
+                <div class="card-value" id="trendValue">--</div>
+                <div class="card-unit" id="trendUnit"></div>
+                <div class="card-status" id="trendStatus"></div>
+            </div>
+        </div>
+
+        <!-- Zone Cards -->
+        <div class="cards-grid">
+            <div class="card" id="zone1Card">
+                <div class="card-header">
+                    <div class="zone-indicator">Z1</div>
+                    <h3>Zone 1</h3>
+                </div>
+                <div class="card-value" id="zone1Value">--</div>
+                <div class="card-unit">%</div>
+                <div class="card-status" id="zone1Status"></div>
+            </div>
+
+            <div class="card" id="zone2Card">
+                <div class="card-header">
+                    <div class="zone-indicator">Z2</div>
+                    <h3>Zone 2</h3>
+                </div>
+                <div class="card-value" id="zone2Value">--</div>
+                <div class="card-unit">%</div>
+                <div class="card-status" id="zone2Status"></div>
+            </div>
+
+            <div class="card" id="zone3Card">
+                <div class="card-header">
+                    <div class="zone-indicator">Z3</div>
+                    <h3>Zone 3</h3>
+                </div>
+                <div class="card-value" id="zone3Value">--</div>
+                <div class="card-unit">%</div>
+                <div class="card-status" id="zone3Status"></div>
+            </div>
+
+            <div class="card" id="zone4Card">
+                <div class="card-header">
+                    <div class="zone-indicator">Z4</div>
+                    <h3>Zone 4</h3>
+                </div>
+                <div class="card-value" id="zone4Value">--</div>
+                <div class="card-unit">%</div>
+                <div class="card-status" id="zone4Status"></div>
+            </div>
+        </div>
+
+        <!-- Historical Chart -->
+        <div class="chart-section">
+            <div class="chart-header">
+                <h2><i class="fas fa-chart-line"></i> Historical Data (Last 12 Months)</h2>
+                <div class="chart-controls">
+                    <button class="chart-btn active" onclick="changeChartType('temperature')">Temperature</button>
+                    <button class="chart-btn" onclick="changeChartType('tds')">TDS</button>
+                    <button class="chart-btn" onclick="changeChartType('gci')">GCI</button>
+                    <button class="chart-btn" onclick="changeChartType('zones')">Zones</button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="historicalChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Abnormal Conditions Log -->
+        <div class="logs-section">
+            <div class="logs-header">
+                <h2>
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Abnormal Conditions Log
+                </h2>
+                <div class="logs-filters">
+                    <button class="filter-btn active" onclick="filterLogs('all')">All</button>
+                    <button class="filter-btn" onclick="filterLogs('critical')">Critical</button>
+                    <button class="filter-btn" onclick="filterLogs('warning')">Warning</button>
+                    <button class="filter-btn" onclick="filterLogs('info')">Info</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table id="logsTable">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Parameter</th>
+                            <th>Value</th>
+                            <th>Threshold</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsBody">
+                        <tr>
+                            <td colspan="6" style="text-align: center;">Loading logs...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            databaseURL: "https://project-fb873-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Global Variables
+        let historicalChart;
+        let currentChartType = 'temperature';
+        let abnormalLogs = [];
+        const TDS_LIMIT = 500;
+        const TEMP_LIMIT = 45;
+
+        // Status Text Function
+        function getStatusText(level) {
+            if (level <= 20) return { text: "SAFE", class: "status-safe" };
+            if (level <= 40) return { text: "LOW", class: "status-low" };
+            if (level <= 60) return { text: "MOD", class: "status-mod" };
+            if (level <= 80) return { text: "HIGH", class: "status-high" };
+            return { text: "CRIT", class: "status-critical" };
+        }
+
+        // Check for abnormal conditions
+        function checkAbnormalConditions(data) {
+            const conditions = [];
+            
+            if (data.temperature > TEMP_LIMIT) {
+                conditions.push({
+                    timestamp: new Date().toISOString(),
+                    parameter: 'Temperature',
+                    value: data.temperature + '°C',
+                    threshold: TEMP_LIMIT + '°C',
+                    status: 'critical',
+                    message: 'High temperature detected'
+                });
+            }
+            
+            if (data.tds > TDS_LIMIT) {
+                conditions.push({
+                    timestamp: new Date().toISOString(),
+                    parameter: 'TDS',
+                    value: data.tds + ' ppm',
+                    threshold: TDS_LIMIT + ' ppm',
+                    status: 'critical',
+                    message: 'High TDS level detected'
+                });
+            }
+            
+            const zones = [data.zone1, data.zone2, data.zone3, data.zone4];
+            zones.forEach((zone, index) => {
+                if (zone > 80) {
+                    conditions.push({
+                        timestamp: new Date().toISOString(),
+                        parameter: `Zone ${index + 1}`,
+                        value: zone + '%',
+                        threshold: '80%',
+                        status: 'critical',
+                        message: `Critical level in Zone ${index + 1}`
+                    });
+                } else if (zone > 60) {
+                    conditions.push({
+                        timestamp: new Date().toISOString(),
+                        parameter: `Zone ${index + 1}`,
+                        value: zone + '%',
+                        threshold: '60%',
+                        status: 'warning',
+                        message: `High level in Zone ${index + 1}`
+                    });
+                }
+            });
+            
+            return conditions;
+        }
+
+        // Update UI with real-time data
+        function updateUI(data) {
+            // Update temperature
+            document.getElementById('tempValue').textContent = data.temperature.toFixed(1);
+            const tempStatus = getStatusText(data.temperature * 100 / TEMP_LIMIT);
+            document.getElementById('tempStatus').textContent = tempStatus.text;
+            document.getElementById('tempStatus').className = 'card-status ' + tempStatus.class;
+            
+            // Update TDS
+            document.getElementById('tdsValue').textContent = Math.round(data.tds);
+            const tdsPercent = (data.tds / TDS_LIMIT) * 100;
+            const tdsStatus = getStatusText(tdsPercent);
+            document.getElementById('tdsStatus').textContent = tdsStatus.text;
+            document.getElementById('tdsStatus').className = 'card-status ' + tdsStatus.class;
+            
+            // Update GCI
+            document.getElementById('gciValue').textContent = data.gci;
+            const gciStatus = getStatusText(data.gci);
+            document.getElementById('gciStatus').textContent = gciStatus.text;
+            document.getElementById('gciStatus').className = 'card-status ' + gciStatus.class;
+            
+            // Update trend
+            document.getElementById('trendValue').textContent = data.trend;
+            document.getElementById('trendStatus').textContent = data.trend;
+            document.getElementById('trendStatus').className = 'card-status ' + (data.trend === 'RISING' ? 'status-high' : 'status-safe');
+            
+            // Update zones
+            const zones = [data.zone1, data.zone2, data.zone3, data.zone4];
+            zones.forEach((zone, index) => {
+                document.getElementById(`zone${index+1}Value`).textContent = zone;
+                const zoneStatus = getStatusText(zone);
+                document.getElementById(`zone${index+1}Status`).textContent = zoneStatus.text;
+                document.getElementById(`zone${index+1}Status`).className = 'card-status ' + zoneStatus.class;
+                
+                // Update card border based on status
+                const card = document.getElementById(`zone${index+1}Card`);
+                card.className = 'card';
+                if (zone > 80) {
+                    card.classList.add('critical');
+                } else if (zone > 60) {
+                    card.classList.add('warning');
+                }
+            });
+            
+            // Check for abnormal conditions
+            const newConditions = checkAbnormalConditions(data);
+            if (newConditions.length > 0) {
+                abnormalLogs = [...newConditions, ...abnormalLogs];
+                if (abnormalLogs.length > 100) abnormalLogs.pop(); // Keep last 100 logs
+                updateLogsTable();
+                
+                // Show alert for critical conditions
+                const critical = newConditions.find(c => c.status === 'critical');
+                if (critical) {
+                    showAlert(critical.message);
+                }
+            }
+            
+            // Update last update time
+            document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+        }
+
+        // Show alert banner
+        function showAlert(message) {
+            document.getElementById('alertMessage').textContent = message;
+            document.getElementById('alertBanner').style.display = 'flex';
+            setTimeout(hideAlert, 5000);
+        }
+
+        function hideAlert() {
+            document.getElementById('alertBanner').style.display = 'none';
+        }
+
+        // Update logs table
+        function updateLogsTable(filter = 'all') {
+            const tbody = document.getElementById('logsBody');
+            const filtered = filter === 'all' ? abnormalLogs : abnormalLogs.filter(log => log.status === filter);
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No logs found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = filtered.map(log => `
+                <tr>
+                    <td>${new Date(log.timestamp).toLocaleString()}</td>
+                    <td>${log.parameter}</td>
+                    <td>${log.value}</td>
+                    <td>${log.threshold}</td>
+                    <td><span class="log-badge log-${log.status}">${log.status.toUpperCase()}</span></td>
+                    <td><button onclick="acknowledgeLog('${log.timestamp}')" class="chart-btn">Acknowledge</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function filterLogs(filter) {
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            updateLogsTable(filter);
+        }
+
+        function acknowledgeLog(timestamp) {
+            abnormalLogs = abnormalLogs.filter(log => log.timestamp !== timestamp);
+            const activeFilter = document.querySelector('.filter-btn.active').textContent.toLowerCase();
+            updateLogsTable(activeFilter);
+        }
+
+        // Initialize historical chart
+        function initChart() {
+            const ctx = document.getElementById('historicalChart').getContext('2d');
+            
+            // Generate last 12 months labels
+            const labels = [];
+            for (let i = 11; i >= 0; i--) {
+                const d = new Date();
+                d.setMonth(d.getMonth() - i);
+                labels.push(d.toLocaleString('default', { month: 'short', year: '2-digit' }));
+            }
+            
+            historicalChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: generateHistoricalData(12, 20, 35),
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                display: true,
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateHistoricalData(count, min, max) {
+            return Array.from({ length: count }, () => min + Math.random() * (max - min));
+        }
+
+        function changeChartType(type) {
+            currentChartType = type;
+            
+            // Update button states
+            document.querySelectorAll('.chart-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update chart data
+            let data, label, color;
+            switch(type) {
+                case 'temperature':
+                    data = generateHistoricalData(12, 20, 35);
+                    label = 'Temperature (°C)';
+                    color = '#667eea';
+                    break;
+                case 'tds':
+                    data = generateHistoricalData(12, 200, 600);
+                    label = 'TDS (ppm)';
+                    color = '#764ba2';
+                    break;
+                case 'gci':
+                    data = generateHistoricalData(12, 30, 80);
+                    label = 'GCI (%)';
+                    color = '#f093fb';
+                    break;
+                case 'zones':
+                    data = generateHistoricalData(12, 40, 90);
+                    label = 'Zone Average (%)';
+                    color = '#f5576c';
+                    break;
+            }
+            
+            historicalChart.data.datasets[0].label = label;
+            historicalChart.data.datasets[0].data = data;
+            historicalChart.data.datasets[0].borderColor = color;
+            historicalChart.data.datasets[0].backgroundColor = color.replace(')', ', 0.1)').replace('rgb', 'rgba');
+            historicalChart.update();
+        }
+
+        // Firebase Realtime Listener
+        function setupFirebaseListener() {
+            const monitoringRef = database.ref('water_monitoring');
+            
+            monitoringRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    updateUI(data);
+                }
+            }, (error) => {
+                console.error('Firebase error:', error);
+                document.getElementById('firebase-status').innerHTML = '<i class="fas fa-exclamation-circle"></i> Disconnected';
+            });
+            
+            // Connection status
+            const connectedRef = database.ref('.info/connected');
+            connectedRef.on('value', (snap) => {
+                if (snap.val() === true) {
+                    document.getElementById('firebase-status').innerHTML = '<i class="fas fa-check-circle"></i> Connected';
+                } else {
+                    document.getElementById('firebase-status').innerHTML = '<i class="fas fa-exclamation-circle"></i> Disconnected';
+                }
+            });
+        }
+
+        // Initialize on page load
+        window.onload = () => {
+            initChart();
+            setupFirebaseListener();
+            
+            // Set up periodic refresh
+            setInterval(() => {
+                document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+            }, 1000);
+            
+            // Generate some sample abnormal logs for demonstration
+            abnormalLogs = [
+                {
+                    timestamp: new Date(Date.now() - 3600000).toISOString(),
+                    parameter: 'Temperature',
+                    value: '47.5°C',
+                    threshold: '45°C',
+                    status: 'critical',
+                    message: 'High temperature detected'
+                },
+                {
+                    timestamp: new Date(Date.now() - 7200000).toISOString(),
+                    parameter: 'Zone 3',
+                    value: '85%',
+                    threshold: '80%',
+                    status: 'critical',
+                    message: 'Critical level in Zone 3'
+                },
+                {
+                    timestamp: new Date(Date.now() - 86400000).toISOString(),
+                    parameter: 'TDS',
+                    value: '520 ppm',
+                    threshold: '500 ppm',
+                    status: 'critical',
+                    message: 'High TDS level detected'
+                }
+            ];
+            updateLogsTable();
+        };
+    </script>
+</body>
+</html>
